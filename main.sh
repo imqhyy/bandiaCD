@@ -8,7 +8,7 @@ so_luong_CD=0
 
 #Doc du lieu tu file
 file_input="CD.txt"
-while IFS="|" read -r ten_CD_temp tac_gia_temp nam_san_xuat_temp the_loai_temp gia_ban_temp mo_ta_temp
+while IFS="|" read -r ten_CD_temp tac_gia_temp nam_san_xuat_temp the_loai_temp gia_ban_temp mo_ta_temp bai_hat_temp
 do
     # Loại bỏ ký tự \r thừa bằng cơ chế xoá chuỗi của Bash
     # Trong Window khi xuống dòng sẽ kèm cả \r\n nhưng trong linux chỉ có \n
@@ -21,6 +21,8 @@ do
     danh_sach_CD[$so_luong_CD,the_loai]="$the_loai_temp"
     danh_sach_CD[$so_luong_CD,gia_ban]="$gia_ban_temp"
     danh_sach_CD[$so_luong_CD,mo_ta]="$mo_ta_temp"
+    #Do yêu cầu tìm bài hát theo tên bài hát mà mỗi CD chỉ có 1 bài nên hơi kì, nên 1 CD sẽ có nhiều bài hát
+    danh_sach_CD[$so_luong_CD,bai_hat]="$bai_hat_temp"
     
 
     # Tăng số lượng CD lên 1
@@ -38,6 +40,7 @@ themCD() {
     local the_loai_temp=$4
     local gia_ban_temp=$5
     local mo_ta_temp=$6
+    local bai_hat_temp=$7
     
 
     danh_sach_CD[$so_luong_CD,ten_CD]=$ten_CD_temp
@@ -46,7 +49,7 @@ themCD() {
     danh_sach_CD[$so_luong_CD,the_loai]=$the_loai_temp
     danh_sach_CD[$so_luong_CD,gia_ban]=$gia_ban_temp
     danh_sach_CD[$so_luong_CD,mo_ta]=$mo_ta_temp
-    
+    danh_sach_CD[$so_luong_CD,bai_hat]=$bai_hat_temp
 
     so_luong_CD=$((so_luong_CD+1))
 }
@@ -181,36 +184,19 @@ inDanhSachCD() {
             fi
 
             # 6. Xử lý Mô tả (tối đa 20 ký tự)
-            if ((${#mo_ta_temp}>20)); then
-                local check=0
-                for ((j=20; j>1; j--))
-                do
-                    if [[ "${mo_ta_temp:$j-1:1}" == " " ]]; then
-                        local mo_ta_out="${mo_ta_temp:0:$j}"
-                        mo_ta_temp="${mo_ta_temp:$j}"
-                        check=1
-                        break
-                    fi
-                done
-                if (($check==0)); then
-                    local mo_ta_out="${mo_ta_temp:0:20}"
-                    mo_ta_temp="${mo_ta_temp:20}"
-                fi
-            else
-                local mo_ta_out="${mo_ta_temp:0}"
-                mo_ta_temp=""   
+            # Xử lý mo_ta (để giữ điều kiện while đồng bộ, nhưng không in)
+            if ((${#mo_ta_temp}>0)); then
+                mo_ta_temp=""
             fi
 
             # 7. Xử lý Giá bán (tối đa 12 ký tự)  
             if ((${#gia_ban_temp}>12)); then
                 local check=0
-                for ((j=12; j>1; j--))
-                do
+                for ((j=12; j>1; j--)); do
                     if [[ "${gia_ban_temp:$j-1:1}" == " " ]]; then
                         local gia_ban_out="${gia_ban_temp:0:$j}"
                         gia_ban_temp="${gia_ban_temp:$j}"
-                        check=1
-                        break
+                        check=1; break
                     fi
                 done
                 if (($check==0)); then
@@ -219,18 +205,20 @@ inDanhSachCD() {
                 fi
             else
                 local gia_ban_out="${gia_ban_temp:0}"
-                gia_ban_temp=""   
+                gia_ban_temp=""
             fi
             
             
             # In dòng dữ liệu hiện tại
+            local gia_ban_hien="$gia_ban_out"
+            [[ -n "$gia_ban_out" ]] && gia_ban_hien="$gia_ban_out VND"
             printf "%-5s | %-25s | %-16s | %-6s | %-10s | %-12s\n" \
             "$ID_out" \
             "$ten_CD_out" \
             "$tac_gia_out" \
             "$nam_san_xuat_out" \
             "$the_loai_out" \
-            "$gia_ban_out"
+            "$gia_ban_hien"
         done
     done
 }
@@ -243,7 +231,8 @@ inChiTietCD() {
     local the_loai_temp=${danh_sach_CD[$ID_CD_temp,the_loai]}
     local mo_ta_temp=${danh_sach_CD[$ID_CD_temp,mo_ta]}
     local gia_ban_temp="${danh_sach_CD[$ID_CD_temp,gia_ban]} VND"
-
+    #them in danh sách bài hát
+    local bai_hat_temp="${danh_sach_CD[$ID_CD_temp,bai_hat]}"
     #In ra man hinh
     echo "=================================================="
     echo "Thong tin chi tiet CD (ID: $ID_CD_temp)"
@@ -450,6 +439,23 @@ inChiTietCD() {
         let line++
     done
 
+    printf "%-16s" "- Bai hat:"
+    if [[ -z "$bai_hat_temp" ]]; then
+        printf "(Chua co)\n"
+    else
+        local stt=1
+        IFS=',' read -ra ds_bai <<< "$bai_hat_temp"
+        for bai in "${ds_bai[@]}"; do
+            # Trim khoảng trắng đầu
+            bai="${bai#"${bai%%[![:space:]]*}"}"
+            if [ $stt -eq 1 ]; then
+                printf "%d. %s\n" "$stt" "$bai"
+            else
+                printf "%-16s%d. %s\n" "" "$stt" "$bai"
+            fi
+            (( stt++ ))
+        done
+    fi
 }
 
 
@@ -485,39 +491,190 @@ suaCD() {
     if [[ -n "$mo_ta_temp" ]]; then
         danh_sach_CD[$ID_CD_temp,mo_ta]=$mo_ta_temp
     fi
-
-    
-
 }
 
 
-#Hàm tìm đĩa theo tên bài hát
-timCDTheoTenBaiHat(){
-    local ten_bai_hat=$1
-    local tim_thay=0
-    for ((i=0; i<so_luong_CD; i++))
+inKetQuaTim() {
+    local id=$1
+    local ID_temp=$id
+    local ten_CD_temp="${danh_sach_CD[$id,ten_CD]}"
+    local tac_gia_temp="${danh_sach_CD[$id,tac_gia]}"
+    local nam_san_xuat_temp="${danh_sach_CD[$id,nam_san_xuat]}"
+    local the_loai_temp="${danh_sach_CD[$id,the_loai]}"
+    local ton_kho_temp="${danh_sach_CD[$id,ton_kho]}"
+    local gia_ban_temp="${danh_sach_CD[$id,gia_ban]}"
+ 
+    while ((${#ID_temp}!=0 || ${#ten_CD_temp}!=0 || ${#tac_gia_temp}!=0 || ${#nam_san_xuat_temp}!=0 || ${#the_loai_temp}!=0 || ${#ton_kho_temp}!=0 || ${#gia_ban_temp}!=0))
     do
-        if [[ "${danh_sach_CD[$i,ten_CD]}" == *"$ten_bai_hat"* ]]
-        then
-            printf "%-5s | %-25s | %-16s | %-6s | %-10s | %-20s | %-12s\n" \
-                "ID" "Ten CD" "Tac gia" "Nam" "The loai" "Mo ta" "Gia ban"
-            echo "---------------------------------------------------------------------------------------------"
-            printf "%-5s | %-25s | %-16s | %-6s | %-10s | %-20s | %-12s\n" \
-                "$i" \
-                "${danh_sach_CD[$i,ten_CD]}" \
-                "${danh_sach_CD[$i,tac_gia]}" \
-                "${danh_sach_CD[$i,nam_san_xuat]}" \
-                "${danh_sach_CD[$i,the_loai]}" \
-                "${danh_sach_CD[$i,mo_ta]}" \
-                "${danh_sach_CD[$i,gia_ban]}"               
+        # ID (5)
+        if ((${#ID_temp}>5)); then
+            local check=0
+            for ((j=5; j>1; j--)); do
+                if [[ "${ID_temp:$((j-1)):1}" == " " ]]; then
+                    local ID_out="${ID_temp:0:$j}"; ID_temp="${ID_temp:$j}"; check=1; break
+                fi
+            done
+            if ((check==0)); then local ID_out="${ID_temp:0:5}"; ID_temp="${ID_temp:5}"; fi
+        else
+            local ID_out="$ID_temp"; ID_temp=""
+        fi
+ 
+        # Ten CD (25)
+        if ((${#ten_CD_temp}>25)); then
+            local check=0
+            for ((j=25; j>1; j--)); do
+                if [[ "${ten_CD_temp:$((j-1)):1}" == " " ]]; then
+                    local ten_CD_out="${ten_CD_temp:0:$j}"; ten_CD_temp="${ten_CD_temp:$j}"; check=1; break
+                fi
+            done
+            if ((check==0)); then local ten_CD_out="${ten_CD_temp:0:25}"; ten_CD_temp="${ten_CD_temp:25}"; fi
+        else
+            local ten_CD_out="$ten_CD_temp"; ten_CD_temp=""
+        fi
+ 
+        # Tac gia (16)
+        if ((${#tac_gia_temp}>16)); then
+            local check=0
+            for ((j=16; j>1; j--)); do
+                if [[ "${tac_gia_temp:$((j-1)):1}" == " " ]]; then
+                    local tac_gia_out="${tac_gia_temp:0:$j}"; tac_gia_temp="${tac_gia_temp:$j}"; check=1; break
+                fi
+            done
+            if ((check==0)); then local tac_gia_out="${tac_gia_temp:0:16}"; tac_gia_temp="${tac_gia_temp:16}"; fi
+        else
+            local tac_gia_out="$tac_gia_temp"; tac_gia_temp=""
+        fi
+ 
+        # Nam san xuat (6)
+        if ((${#nam_san_xuat_temp}>6)); then
+            local check=0
+            for ((j=6; j>1; j--)); do
+                if [[ "${nam_san_xuat_temp:$((j-1)):1}" == " " ]]; then
+                    local nam_san_xuat_out="${nam_san_xuat_temp:0:$j}"; nam_san_xuat_temp="${nam_san_xuat_temp:$j}"; check=1; break
+                fi
+            done
+            if ((check==0)); then local nam_san_xuat_out="${nam_san_xuat_temp:0:6}"; nam_san_xuat_temp="${nam_san_xuat_temp:6}"; fi
+        else
+            local nam_san_xuat_out="$nam_san_xuat_temp"; nam_san_xuat_temp=""
+        fi
+ 
+        # The loai (10)
+        if ((${#the_loai_temp}>10)); then
+            local check=0
+            for ((j=10; j>1; j--)); do
+                if [[ "${the_loai_temp:$((j-1)):1}" == " " ]]; then
+                    local the_loai_out="${the_loai_temp:0:$j}"; the_loai_temp="${the_loai_temp:$j}"; check=1; break
+                fi
+            done
+            if ((check==0)); then local the_loai_out="${the_loai_temp:0:10}"; the_loai_temp="${the_loai_temp:10}"; fi
+        else
+            local the_loai_out="$the_loai_temp"; the_loai_temp=""
+        fi
+ 
+        # Ton kho (10)
+        if ((${#ton_kho_temp}>10)); then
+            local check=0
+            for ((j=10; j>1; j--)); do
+                if [[ "${ton_kho_temp:$((j-1)):1}" == " " ]]; then
+                    local ton_kho_out="${ton_kho_temp:0:$j}"; ton_kho_temp="${ton_kho_temp:$j}"; check=1; break
+                fi
+            done
+            if ((check==0)); then local ton_kho_out="${ton_kho_temp:0:10}"; ton_kho_temp="${ton_kho_temp:10}"; fi
+        else
+            local ton_kho_out="$ton_kho_temp"; ton_kho_temp=""
+        fi
+ 
+        # Gia ban (12)
+        if ((${#gia_ban_temp}>12)); then
+            local check=0
+            for ((j=12; j>1; j--)); do
+                if [[ "${gia_ban_temp:$((j-1)):1}" == " " ]]; then
+                    local gia_ban_out="${gia_ban_temp:0:$j}"; gia_ban_temp="${gia_ban_temp:$j}"; check=1; break
+                fi
+            done
+            if ((check==0)); then local gia_ban_out="${gia_ban_temp:0:12}"; gia_ban_temp="${gia_ban_temp:12}"; fi
+        else
+            local gia_ban_out="$gia_ban_temp"; gia_ban_temp=""
+        fi
+ 
+        local gia_ban_hien="$gia_ban_out"
+        [[ -n "$gia_ban_out" ]] && gia_ban_hien="$gia_ban_out VND"
+ 
+        printf "%-5s | %-25s | %-16s | %-6s | %-10s | %-10s | %-12s\n" \
+            "$ID_out" "$ten_CD_out" "$tac_gia_out" "$nam_san_xuat_out" \
+            "$the_loai_out" "$ton_kho_out" "$gia_ban_hien"
+    done
+}
+ 
+inHeaderTim() {
+    printf "%-5s | %-25s | %-16s | %-6s | %-10s | %-10s | %-12s\n" \
+        "ID" "Ten CD" "Tac gia" "Nam" "The loai" "Ton kho" "Gia ban"
+    echo "----------------------------------------------------------------------------------------------------"
+}
+
+
+
+timCDTheoTheLoai() {
+    # In ra gợi ý thể loại hiện có trong danh sách để người dùng dễ tìm
+    declare -A _da_co
+    local ds_the_loai=()
+    for (( i=0; i<so_luong_CD; i++ )); do
+        local tl="${danh_sach_CD[$i,the_loai]}"
+        if [[ -n "$tl" && -z "${_da_co[$tl]}" ]]; then
+            _da_co[$tl]=1
+            ds_the_loai+=("$tl")
+        fi
+    done
+    
+    if (( ${#ds_the_loai[@]} > 0 )); then
+        local chuoi_the_loai="${ds_the_loai[0]}"
+        for (( k=1; k<${#ds_the_loai[@]}; k++ )); do
+            chuoi_the_loai+=", ${ds_the_loai[$k]}"
+        done
+        echo "The loai hien co: $chuoi_the_loai"
+    fi
+ 
+    read -rp "Nhap the loai can tim: " the_loai_can_tim
+    local tim_thay=0
+    inHeaderTim
+    for (( i=0; i<so_luong_CD; i++ )); do
+        if [[ "${danh_sach_CD[$i,the_loai],,}" == *"${the_loai_can_tim,,}"* ]]; then
+            inKetQuaTim "$i"
             tim_thay=1
         fi
     done
-    [[ $tim_thay -eq 0 ]] && \
-        echo "Khong tim thay CD co ten bai hat $ten_bai_hat"
-    }
-
-
+    (( tim_thay == 0 )) && echo "Khong tim thay CD thuoc the loai: $the_loai_can_tim"
+}
+ 
+# tìm theo tên tác giả
+timCDTheoTacGia() {
+    local tac_gia_can_tim=$1
+    local tim_thay=0
+ 
+    inHeaderTim
+    for (( i=0; i<so_luong_CD; i++ )); do
+        if [[ "${danh_sach_CD[$i,tac_gia],,}" == *"${tac_gia_can_tim,,}"* ]]; then
+            inKetQuaTim "$i"
+            tim_thay=1
+        fi
+    done
+    (( tim_thay == 0 )) && echo "Khong tim thay CD cua tac gia: $tac_gia_can_tim"
+}
+ 
+# tìm theo tên bài hát
+timCDTheoTenBaiHat() {
+    local ten_bai_hat=$1
+    local tim_thay=0
+ 
+    inHeaderTim
+    for (( i=0; i<so_luong_CD; i++ )); do
+        if [[ "${danh_sach_CD[$i,bai_hat],,}" == *"${ten_bai_hat,,}"* ]]; then
+            inKetQuaTim "$i"
+            tim_thay=1
+        fi
+    done
+    (( tim_thay == 0 )) && echo "Khong tim thay CD co bai hat: $ten_bai_hat"
+}
 
 
 ghiDuLieuVaoFile() {
@@ -535,9 +692,10 @@ ghiDuLieuVaoFile() {
         local the_loai=${danh_sach_CD[$i,the_loai]}
         local gia=${danh_sach_CD[$i,gia_ban]}
         local mo_ta=${danh_sach_CD[$i,mo_ta]}
+        local bai_hat=${danh_sach_CD[$i,bai_hat]}
 
         # Bước 3: Nối các biến lại bằng dấu | và dùng >> để ghi nối tiếp vào file
-        echo "$ten|$tac_gia|$nam|$the_loai|$gia|$mo_ta" >> "$file_input"
+        echo "$ten|$tac_gia|$nam|$the_loai|$gia|$mo_ta|$bai_hat" >> "$file_input"
     done
     
     echo "Da luu toan bo du lieu vao file $file_input!"
@@ -569,7 +727,8 @@ do
                 read -rp "Nhap the loai: " the_loai
                 read -rp "Nhap gia ban: " gia_ban
                 read -rp "Nhap mo ta: " mo_ta
-                themCD "$ten_CD" "$tac_gia" "$nam_san_xuat" "$the_loai" "$gia_ban" "$mo_ta"
+                read -rp "Nhap danh sach bai hat: " bai_hat
+                themCD "$ten_CD" "$tac_gia" "$nam_san_xuat" "$the_loai" "$gia_ban" "$mo_ta" "$bai_hat"
                 break
             };;
             2) {
@@ -633,9 +792,8 @@ do
                         };;
 
                         4) {
-                            read -rp "Nhap the loai: " the_loai
-                            suaCD "$ID_CD" "$ten_CD" "$tac_gia" "$nam_san_xuat" "$the_loai" "$mo_ta" "$gia_ban"
-                            echo "Sua thanh cong!"
+                            read -rp 
+                            timCDTheoTheLoai "$KET_QUA_GOI_Y"
                             read -rp "Nhan enter de tiep tuc..." temp
                             break
                         };;
@@ -700,10 +858,15 @@ do
             };;
 
             4) {
+                timCDTheoTheLoai
+                read -rp "Nhan enter de tiep tuc..." temp
                 break
             };;
 
             5) {
+                    read -rp "Nhap tac gia can tim: " tac_gia
+                    timCDTheoTacGia "$tac_gia"
+                    read -rp "Nhan enter de tiep tuc..." temp
                 break
             };;
             
