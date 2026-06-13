@@ -14,11 +14,7 @@ data_change=0
 
 #Doc du lieu tu file
 file_input="CD.txt"
-<<<<<<< HEAD
-while IFS="|" read -r ten_CD_temp tac_gia_temp nam_san_xuat_temp the_loai_temp gia_ban_temp mo_ta_temp || [[ -n "$ten_CD_temp" ]]
-=======
-while IFS="|" read -r ten_CD_temp tac_gia_temp nam_san_xuat_temp the_loai_temp gia_ban_temp mo_ta_temp bai_hat_temp
->>>>>>> 79afb8fc07143b286cb9384c20f7a4fc6c004f4e
+while IFS="|" read -r ten_CD_temp tac_gia_temp nam_san_xuat_temp the_loai_temp gia_ban_temp mo_ta_temp bai_hat_temp || [[ -n "$ten_CD_temp" ]]
 do
     # Loại bỏ ký tự \r thừa bằng cơ chế xoá chuỗi của Bash
     # Trong Window khi xuống dòng sẽ kèm cả \r\n nhưng trong linux chỉ có \n
@@ -1032,13 +1028,10 @@ suaCD() {
     if [ $edit -eq 6 ]; then
         danh_sach_CD[$ID_CD_temp,mo_ta]=$edit_content
     fi
-<<<<<<< HEAD
 
     data_change=1
     
 
-=======
->>>>>>> 79afb8fc07143b286cb9384c20f7a4fc6c004f4e
 }
 
 
@@ -1191,14 +1184,6 @@ timCDTheoTheLoai() {
             tim_thay=1
         fi
     done
-<<<<<<< HEAD
-    [[ $tim_thay -eq 0 ]] && \
-        echo "Khong tim thay CD co ten bai hat $ten_bai_hat"
-    }
-
-banCD () {
-    echo ok
-=======
     (( tim_thay == 0 )) && echo "Khong tim thay CD thuoc the loai: $the_loai_can_tim"
 }
  
@@ -1230,7 +1215,6 @@ timCDTheoTenBaiHat() {
         fi
     done
     (( tim_thay == 0 )) && echo "Khong tim thay CD co bai hat: $ten_bai_hat"
->>>>>>> 79afb8fc07143b286cb9384c20f7a4fc6c004f4e
 }
 
 
@@ -1367,14 +1351,8 @@ do
                         };;
 
                         4) {
-<<<<<<< HEAD
-                            read -rp "Nhap the loai: " the_loai
-                            suaCD "$ID_CD" "$the_loai" 4
-                            echo "Sua thanh cong!"
-=======
                             read -rp 
                             timCDTheoTheLoai "$KET_QUA_GOI_Y"
->>>>>>> 79afb8fc07143b286cb9384c20f7a4fc6c004f4e
                             read -rp "Nhan enter de tiep tuc..." temp
                             break
                         };;
